@@ -15,13 +15,15 @@
 module Main where
 
 import Concur.Core (Widget, liftSTM, orr)
-import Concur.Replica (runDefault)
+import Concur.Replica (run)
 import Control.Concurrent.STM
 import Control.Monad.IO.Class (liftIO)
-import Data.Text (pack)
+import Data.Text (pack, unpack)
+import Data.Text.Encoding (decodeUtf8)
+import Network.WebSockets (RequestHead, defaultConnectionOptions, requestPath)
 import Network.Wai.Handler.Replica (Context(Context, call, registerCallback))
 import Prelude
-import Replica.VDOM (HTML)
+import Replica.VDOM (HTML, defaultIndex)
 
 import qualified Concur.Replica.DOM as H
 import qualified Concur.Replica.DOM.Events as P
@@ -96,7 +98,11 @@ routingApp = \case
 main :: IO ()
 main = do
   putStrLn "Starting app"
-  runDefault 8080 "Website" $
-    \ctx -> do
+  run 8080 (defaultIndex "Website" []) defaultConnectionOptions id $
+    \req ctx -> do
       liftIO (putStrLn "Client connected")
-      route ctx SiteA routingApp
+      route ctx (fromRoute (getPath req)) routingApp
+  where
+    getPath :: RequestHead -> String
+    getPath =
+      unpack . decodeUtf8 . requestPath

@@ -10,20 +10,21 @@ import qualified Data.Text                       as T
 import           Replica.VDOM                    (fireEvent, defaultIndex)
 import           Replica.VDOM.Types              (DOMEvent(DOMEvent), HTML)
 
+import           Network.WebSockets              (RequestHead)
 import           Network.WebSockets.Connection   (ConnectionOptions, defaultConnectionOptions)
 import           Network.Wai                     (Middleware)
 import qualified Network.Wai.Handler.Replica     as R
 import qualified Network.Wai.Handler.Warp        as W
 
-run :: Int -> HTML -> ConnectionOptions -> Middleware -> (R.Context -> Widget HTML a) -> IO ()
+run :: Int -> HTML -> ConnectionOptions -> Middleware -> (RequestHead -> R.Context -> Widget HTML a) -> IO ()
 run port index connectionOptions middleware widget
   = W.run port
-  $ R.app index connectionOptions middleware (step <$> widget) stepWidget
+  $ R.app index connectionOptions middleware (\req -> step <$> widget req) stepWidget
 
 runDefault :: Int -> T.Text -> (R.Context -> Widget HTML a) -> IO ()
 runDefault port title widget
   = W.run port
-  $ R.app (defaultIndex title []) defaultConnectionOptions id (step <$> widget) stepWidget
+  $ R.app (defaultIndex title []) defaultConnectionOptions id (\_ -> step <$> widget) stepWidget
 
 -- | No need to use this directly if you're using 'run' or 'runDefault'.
 stepWidget :: R.Context -> (R.Context -> Free (SuspendF HTML) a) -> IO (Maybe (HTML, R.Context -> Free (SuspendF HTML) a, R.Event -> Maybe (IO ())))
